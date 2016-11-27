@@ -1,0 +1,4 @@
+Glider synthesis database.
+
+Currently holds syntheses for all still lifes of at most 15 bits
+in Conway's Game of Life.
