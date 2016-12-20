@@ -9,7 +9,9 @@ GLIDERS = [(g.parse("3o$2bo$bo!", -2, 0), 1, -1),   #NE
            (g.parse("bo$o$3o!", 0, -2), -1, 1),     #SW
            (g.parse("3o$o$bo!", 0, 0), -1, -1)]     #NW
 
-def place_gliders(glider_lists, t):
+def get_gliders(glider_lists, t):
+
+    ret = []
 
     for (glider, vx, vy), glider_list in zip(GLIDERS, glider_lists):
         
@@ -18,21 +20,46 @@ def place_gliders(glider_lists, t):
             phase = (t + timing) % 4
             d = (t + timing) // 4
 
-            g.putcells(g.evolve(glider, phase), lane + d * vx, d * vy)
+            ret += g.transform(g.evolve(glider, phase), lane + d * vx, d * vy)
 
-def display_edge(edge):
+    return ret
+
+# return the transformation t2 o t1
+def compose(t1, t2):
+
+    x, y, a, b, c, d = g.transform(g.transform([0, 0, 1, 0, 0, 1], *t1), *t2)
+
+    return (x, y, a-x, c-x, b-y, d-y)
+
+# return the inverse of t
+def inverse(t):
+
+    x, y, a, b, c, d = t
+
+    det = a * d - b * c
+
+    # assert(det in [-1, +1])
+
+    inv = [det * i for i in [d, -b, -c, a]]
+
+    return g.transform([-x, -y], 0, 0, *inv) + inv
+
+def display_edge(edge, post_transform=(0,0,1,0,0,1)):
 
     input_code, output_code, phase, glider_lists, transform = edge
 
-    g.putcells(decodeCanon(input_code))
-    
-    output_cells = decodeCanon(output_code)
-    output_cells = g.evolve(output_cells, phase)
-    output_cells = g.transform(output_cells, *transform)
-    
+    input_cells = decodeCanon(input_code) + get_gliders(glider_lists, 0)
+    output_cells = g.evolve(decodeCanon(output_code), phase)
+
+    new_transform = compose(inverse(transform), post_transform)
+
+    input_cells = g.transform(input_cells, *new_transform)
+    output_cells = g.transform(output_cells, *post_transform)
+
+    g.putcells(input_cells, 0, 0)    
     g.putcells(output_cells, 100, 0)
 
-    place_gliders(glider_lists, 0)
+    return new_transform
 
 def edge_cost(edge):
     
@@ -60,36 +87,28 @@ def display_synthesis(apgcode):
 
     found = True
     cost = 0
+    transform = (0,0,1,0,0,1)
 
-    while found and apgcode != "0":
-        found = False
-        with open("min_paths.txt") as f:
-            for s in f:
-                edge = edge_from_string(s)
-                if edge[1] == apgcode:
+    while apgcode != "0":
 
-                    # move everything down 100 cells
-                    if g.getrect():
-                        cells = g.getcells(g.getrect())
-                        g.new('')
-                        g.putcells(cells, 0, 100)
+        if apgcode not in min_paths:
+            return "Don't know how to synthesise %s" % apgcode
+
+        edge = min_paths[apgcode]
+
+        # move everything down 100 cells
+        if g.getrect():
+            cells = g.getcells(g.getrect())
+            g.new('')
+            g.putcells(cells, 0, 100)
+            
+        transform = display_edge(edge, transform)
                     
-                    display_edge(edge)
-                    
-                    # update cost and apgcode
-                    apgcode = edge[0]
-                    cost += edge_cost(edge)
-
-                    found = True
-                    break
-
-    g.fit()
-
-    if not found:
-        return "Don't know how to synthesise %s" % apgcode
-
-    if apgcode == "0":
-        return "Cost %d gliders " % cost
+        # update cost and apgcode
+        apgcode = edge[0]
+        cost += edge_cost(edge)
+        
+    return "Cost %d gliders " % cost
 
 # Obtains a canonical representation of any oscillator/spaceship that (in
 # some phase) fits within a 40-by-40 bounding box. This representation is
@@ -247,6 +266,13 @@ else:
         f.write(urlopen(URL).read())
     message1 = "Downloaded data from \"%s\"." % URL 
 
+min_paths = {}
+
+with open("min_paths.txt") as f:
+    for s in f:
+        edge = edge_from_string(s)
+        min_paths[edge[1]] = edge
+
 if g.getselrect():
     cells = g.getcells(g.getselrect())
 elif g.getrect():
@@ -265,4 +291,5 @@ g.new(apgcode)
 
 message2 = display_synthesis(apgcode)
 
+g.fit()
 g.show(message1 + " " + message2)
