@@ -3,8 +3,13 @@
 <script type='text/javascript' src='display_synth.js'></script>
 <script type='text/javascript'>
   function do_it() {
-    var after_hash = window.location.hash.substr(1);
-    document.getElementById('code0').innerHTML = apgcode_to_synthesis_rle(after_hash);
+    var sp = window.location.href.split('?');
+    var code = document.getElementById('code0');
+    if (sp.length > 1) {
+      code.innerHTML = apgcode_to_synthesis_rle(sp[1]);
+    } else {
+      code.innerHTML = "#C Add apgcode after a '?' in URL<br>#C e.g." + window.location.href + "?xs4_33";
+    }
   }
 
 //from forum_fn.js on conwaylife.com/forums
