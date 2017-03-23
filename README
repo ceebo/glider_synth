@@ -1,4 +1,4 @@
 Glider synthesis database.
 
-Currently holds syntheses for all still lifes of at most 15 bits
-and many of 16 bits in Conway's Game of Life.
+Currently holds syntheses for all still lifes of at most 16 bits
+in Conway's Game of Life.
